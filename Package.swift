@@ -5,6 +5,9 @@ import PackageDescription
 
 let package = Package(
     name: "Datablit",
+    platforms: [
+            .iOS(.v13) // ✅ Makes UIKit available
+    ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
