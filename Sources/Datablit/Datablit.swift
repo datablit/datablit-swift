@@ -6,28 +6,12 @@ import Network
 import UIKit
 #endif
 
+public final class Datablit : @unchecked Sendable{
+    public static let shared = Datablit()
 
-enum EventType: String, Codable {
-    case invalid, identify, track
-}
-
-struct Event: Codable {
-    var anonymousId: String
-    var userId: String?
-    var messageId: String
-    var type: EventType
-    var context: [String: AnyCodable]?
-    var originalTimestamp: String
-    var event: String?
-    var properties: [String: AnyCodable]?
-    var traits: [String: AnyCodable]?
-}
-
-public final class Analytics : @unchecked Sendable{
-    public static let shared = Analytics()
-
-    private var apiURL: String = ""
-    private var writeKey: String = ""
+    private var endpoint: String = ""
+    private var apiBaseURL: String = ""
+    private var apiKey: String = ""
     private var anonymousId: String = UUID().uuidString
     private var userId: String?
     private var context: [String: AnyCodable] = [:]
@@ -43,14 +27,16 @@ public final class Analytics : @unchecked Sendable{
 
     @MainActor
     public func initialize(
-        writeKey: String,
-        apiURL: String = "http://api.datablit.com:30081/v1/batch",
+        apiKey: String,
+        apiBaseURL: String = "https://console.datablit.com",
+        endpoint: String = "https://event.datablit.com/v1/batch",
         flushAt: Int = 20,
         flushInterval: TimeInterval = 30.0,
         trackApplicationLifecycleEvents: Bool = false
     ) {
-        self.writeKey = writeKey
-        self.apiURL = apiURL
+        self.apiKey = apiKey
+        self.apiBaseURL = apiBaseURL
+        self.endpoint = endpoint
         self.flushAt = flushAt
         self.flushInterval = flushInterval
 
@@ -145,7 +131,7 @@ public final class Analytics : @unchecked Sendable{
                 "batch": batch.map { $0.toDictionary() }
             ]
 
-            guard let url = URL(string: self.apiURL),
+            guard let url = URL(string: self.endpoint),
                   let data = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
                 print("❌ Invalid URL or payload")
                 return
@@ -154,7 +140,7 @@ public final class Analytics : @unchecked Sendable{
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue(self.writeKey, forHTTPHeaderField: "write_key")
+            request.setValue(self.apiKey, forHTTPHeaderField: "apiKey")
             request.httpBody = data
 
             URLSession.shared.dataTask(with: request) { data, response, error in
@@ -284,78 +270,9 @@ public final class Analytics : @unchecked Sendable{
 }
 
 
-struct AnyCodable: Codable, @unchecked Sendable {
-    var value: Any
 
-    init(_ value: Any) {
-        self.value = value
-    }
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch value {
-        case is String: try container.encode(value as! String)
-        case is Int: try container.encode(value as! Int)
-        case is Double: try container.encode(value as! Double)
-        case is Bool: try container.encode(value as! Bool)
-        case is [Any]: try container.encode((value as! [Any]).map { AnyCodable($0) })
-        case is [String: Any]: try container.encode((value as! [String: Any]).mapValues { AnyCodable($0) })
-        default: try container.encodeNil()
-        }
-    }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let str = try? container.decode(String.self) {
-            self.value = str
-        } else if let int = try? container.decode(Int.self) {
-            self.value = int
-        } else if let dbl = try? container.decode(Double.self) {
-            self.value = dbl
-        } else if let bool = try? container.decode(Bool.self) {
-            self.value = bool
-        } else if let arr = try? container.decode([AnyCodable].self) {
-            self.value = arr.map { $0.value }
-        } else if let dict = try? container.decode([String: AnyCodable].self) {
-            self.value = dict.mapValues { $0.value }
-        } else {
-            self.value = ()
-        }
-    }
-}
 
-extension Event {
-    func toDictionary() -> [String: Any] {
-        let encoder = JSONEncoder()
-        guard let data = try? encoder.encode(self),
-              let dict = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
-            return [:]
-        }
-        return dict
-    }
-}
 
-final class NetworkStatus: @unchecked Sendable {
-    static let shared = NetworkStatus()
-    private let queue = DispatchQueue(label: "com.sdk.network.monitor")
-
-    private(set) var isWiFi: Bool = false
-    private(set) var isCellular: Bool = false
-    private(set) var isConnected: Bool = false
-
-    private init() {
-        if #available(iOS 12.0, macOS 10.14, *) {
-            let monitor = NWPathMonitor()
-            monitor.pathUpdateHandler = { [weak self] path in
-                guard let self = self else { return }
-                self.isConnected = path.status == .satisfied
-                self.isWiFi = path.usesInterfaceType(.wifi)
-                self.isCellular = path.usesInterfaceType(.cellular)
-            }
-            monitor.start(queue: queue)
-        } else {
-            print("⚠️ NWPathMonitor not available on this OS version")
-        }
-    }
-}
 
