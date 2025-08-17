@@ -6,6 +6,7 @@ import Network
 import UIKit
 #endif
 
+@available(macOS 10.15, iOS 13.0, *)
 public final class Datablit : @unchecked Sendable{
     public static let shared = Datablit()
 
@@ -23,6 +24,12 @@ public final class Datablit : @unchecked Sendable{
     private var timer: Timer?
 
     private let queueDispatch = DispatchQueue(label: "com.sdk.message.queue")
+    
+    /// Rule evaluation instance
+    public private(set) lazy var rule = Rule(apiKey: apiKey, apiBaseURL: apiBaseURL)
+    
+    /// Experiment instance
+    public private(set) lazy var experiment = Experiment(apiKey: apiKey, apiBaseURL: apiBaseURL)
 
     private init() {}
 
@@ -45,13 +52,35 @@ public final class Datablit : @unchecked Sendable{
 
         self.anonymousId = loadOrGenerateAnonymousId()
         self.userId = UserDefaults.standard.string(forKey: "sdk_user_id")
-        setupContext()
+        SetupUtils.setupContext(&self.context)
 
         if trackApplicationLifecycleEvents {
-            setupLifecycleTracking()
+            SetupUtils.setupLifecycleTracking(self)
         }
 
         startFlushTimer()
+        
+        // Update rule instance with new configuration
+        self.rule = Rule(apiKey: apiKey, apiBaseURL: apiBaseURL)
+        
+        // Update experiment instance with new configuration
+        self.experiment = Experiment(apiKey: apiKey, apiBaseURL: apiBaseURL)
+    }
+
+    @objc internal func appDidBecomeActive() {
+        track(eventName: "Application Active")
+    }
+
+    @objc internal func appDidEnterBackground() {
+        track(eventName: "Application Backgrounded")
+    }
+
+    @objc internal func appWillEnterForeground() {
+        track(eventName: "Application Foreground")
+    }
+
+    @objc internal func appDidFinishLaunching() {
+        track(eventName: "Application Launched")
     }
 
     private func debugLog(_ message: String) {
@@ -190,96 +219,40 @@ public final class Datablit : @unchecked Sendable{
         return id
     }
 
-    @MainActor
-    private func setupContext() {
-        #if canImport(UIKit)
-        let device = UIDevice.current
-        let screen = UIScreen.main.bounds
-        let bundle = Bundle.main
+}
 
-        let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+// MARK: - Datablit Errors
 
-        // App Info
-        let appVersion = bundle.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
-        let appName = bundle.infoDictionary?["CFBundleName"] as? String ?? "unknown"
-        let appBuild = bundle.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"
-        let appNamespace = bundle.bundleIdentifier ?? "unknown"
-
-        // OS Version
-        let osName = "iOS"
-        let osVersion = device.systemVersion
-
-        let network = [
-            "wifi": NetworkStatus.shared.isWiFi,
-            "bluetooth": false,
-            "cellular": NetworkStatus.shared.isCellular
-        ]
-
-        let userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS \(osVersion.replacingOccurrences(of: ".", with: "_")) like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile"
-
-        self.context = [
-            "device": AnyCodable([
-                "name": "iPhone",
-                "manufacturer": "Apple",
-                "model": "arm64",
-                "id": deviceId,
-                "type": "ios"
-            ]),
-            "screen": AnyCodable([
-                "height": Int(screen.height),
-                "width": Int(screen.width)
-            ]),
-            "userAgent": AnyCodable(userAgent),
-            "library": AnyCodable([
-                "name": "datablit-swift",
-                "version": "1.0.0"
-            ]),
-            "app": AnyCodable([
-                "version": appVersion,
-                "name": appName,
-                "build": appBuild,
-                "namespace": appNamespace
-            ]),
-            "locale": AnyCodable(Locale.current.identifier),
-            "network": AnyCodable(network),
-            "os": AnyCodable([
-                "name": osName,
-                "version": osVersion
-            ]),
-            "timezone": AnyCodable(TimeZone.current.identifier),
-        ]
-        #else
-        errorLog("❌ setupContext(): UIKit not available. Skipping context population.")
-        #endif
-    }
+/// Errors that can occur during Datablit operations
+public enum DatablitError: Error, LocalizedError {
+    case apiKeyNotSet
+    case invalidURL
+    case invalidResponse
+    case encodingError
+    case apiError(Int, String)
     
-    @MainActor
-    private func setupLifecycleTracking() {
-        #if canImport(UIKit)
-        let center = NotificationCenter.default
-        center.addObserver(self, selector: #selector(appDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
-        center.addObserver(self, selector: #selector(appDidEnterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
-        center.addObserver(self, selector: #selector(appWillEnterForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
-        center.addObserver(self, selector: #selector(appDidFinishLaunching), name: UIApplication.didFinishLaunchingNotification, object: nil)
-        #endif
+    public var errorDescription: String? {
+        switch self {
+        case .apiKeyNotSet:
+            return "API key is not set. Please initialize the SDK first."
+        case .invalidURL:
+            return "Invalid URL for API request."
+        case .invalidResponse:
+            return "Invalid response from server."
+        case .encodingError:
+            return "Failed to encode request parameters."
+        case .apiError(let statusCode, let message):
+            return "API request failed: \(statusCode) - \(message)"
+        }
     }
+}
 
-    @objc private func appDidBecomeActive() {
-        track(eventName: "Application Active")
+// MARK: - HTTP Status Code Extension
+
+private extension Int {
+    var isSuccess: Bool {
+        return 200...299 ~= self
     }
-
-    @objc private func appDidEnterBackground() {
-        track(eventName: "Application Backgrounded")
-    }
-
-    @objc private func appWillEnterForeground() {
-        track(eventName: "Application Foreground")
-    }
-
-    @objc private func appDidFinishLaunching() {
-        track(eventName: "Application Launched")
-    }
-
 }
 
 

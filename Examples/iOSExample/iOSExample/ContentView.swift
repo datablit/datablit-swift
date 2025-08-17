@@ -16,6 +16,21 @@ struct ContentView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     
+    // Rule evaluation state
+    @State private var ruleKey: String = "fer"
+    @State private var ruleUserId: String = "1"
+    @State private var ruleParamKey: String = "os_name"
+    @State private var ruleParamValue: String = "android"
+    @State private var ruleParams: [String: String] = [:]
+    @State private var ruleResult: String = ""
+    @State private var isEvaluatingRule = false
+    
+    // Experiment state
+    @State private var experimentId: String = "01K2JKVXR0J0ZWPX40XY8CAWBS"
+    @State private var experimentUserId: String = "1"
+    @State private var experimentResult: String = ""
+    @State private var isGettingVariant = false
+    
     var body: some View {
         NavigationView {
             ScrollView {
@@ -30,7 +45,7 @@ struct ContentView: View {
                             .font(.largeTitle)
                             .fontWeight(.bold)
                         
-                        Text("Test analytics tracking and user identification")
+                        Text("Test analytics tracking, user identification, and rule evaluation")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -82,6 +97,146 @@ struct ContentView: View {
                                     showAlert("Events flushed to server!")
                                 }
                             )
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    // Rule Evaluation Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Rule Evaluation")
+                            .font(.headline)
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 12) {
+                            TextField("Rule Key", text: $ruleKey)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            
+                            TextField("User ID", text: $ruleUserId)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            
+                            HStack {
+                                TextField("Parameter Key", text: $ruleParamKey)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                
+                                TextField("Parameter Value", text: $ruleParamValue)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                            }
+                            
+                            HStack {
+                                Button("Add Parameter") {
+                                    if !ruleParamKey.isEmpty && !ruleParamValue.isEmpty {
+                                        ruleParams[ruleParamKey] = ruleParamValue
+                                        ruleParamKey = ""
+                                        ruleParamValue = ""
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                
+                                Button("Clear Parameters") {
+                                    ruleParams.removeAll()
+                                }
+                                .buttonStyle(.bordered)
+                                .foregroundColor(.red)
+                            }
+                            
+                            if !ruleParams.isEmpty {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Parameters:")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    ForEach(Array(ruleParams.keys.sorted()), id: \.self) { key in
+                                        Text("\(key): \(ruleParams[key] ?? "")")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                            
+                            Button("Evaluate Rule") {
+                                Task {
+                                    await evaluateRule()
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(ruleKey.isEmpty || ruleUserId.isEmpty || isEvaluatingRule)
+                            
+                            if isEvaluatingRule {
+                                HStack {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                    Text("Evaluating rule...")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            if !ruleResult.isEmpty {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Result:")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Text(ruleResult)
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                        .padding(8)
+                                        .background(Color.gray.opacity(0.1))
+                                        .cornerRadius(6)
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    // Experiment Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Experiment Variants")
+                            .font(.headline)
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 12) {
+                            TextField("Experiment ID", text: $experimentId)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            
+                            TextField("User ID", text: $experimentUserId)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            
+                            Button("Get Variant") {
+                                Task {
+                                    await getExperimentVariant()
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(experimentId.isEmpty || experimentUserId.isEmpty || isGettingVariant)
+                            
+                            if isGettingVariant {
+                                HStack {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                    Text("Getting variant...")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            if !experimentResult.isEmpty {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Result:")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Text(experimentResult)
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                        .padding(8)
+                                        .background(Color.gray.opacity(0.1))
+                                        .cornerRadius(6)
+                                }
+                                .padding(.horizontal)
+                            }
                         }
                         .padding(.horizontal)
                     }
@@ -215,6 +370,59 @@ struct ContentView: View {
                 Button("OK") { }
             } message: {
                 Text(alertMessage)
+            }
+        }
+    }
+    
+    private func evaluateRule() async {
+        isEvaluatingRule = true
+        ruleResult = ""
+        
+        do {
+            let result = try await Datablit.shared.rule.evalRule(
+                key: ruleKey,
+                userId: ruleUserId,
+                params: ruleParams
+            )
+            
+            await MainActor.run {
+                ruleResult = """
+                Rule: \(result.key)
+                User: \(result.userId)
+                Result: \(result.result ? "✅ True" : "❌ False")
+                """
+                isEvaluatingRule = false
+            }
+        } catch {
+            await MainActor.run {
+                ruleResult = "Error: \(error.localizedDescription)"
+                isEvaluatingRule = false
+            }
+        }
+    }
+    
+    private func getExperimentVariant() async {
+        isGettingVariant = true
+        experimentResult = ""
+        
+        do {
+            let result = try await Datablit.shared.experiment.getVariant(
+                expId: experimentId,
+                entityId: experimentUserId
+            )
+            
+            await MainActor.run {
+                experimentResult = """
+                Experiment: \(result.expId)
+                User: \(result.entityId)
+                Variant: \(result.variant)
+                """
+                isGettingVariant = false
+            }
+        } catch {
+            await MainActor.run {
+                experimentResult = "Error: \(error.localizedDescription)"
+                isGettingVariant = false
             }
         }
     }

@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		00D45A782E51C853000E86A8 /* Datablit in Frameworks */ = {isa = PBXBuildFile; productRef = 00D45A772E51C853000E86A8 /* Datablit */; };
+		00D45A7B2E51D3E5000E86A8 /* Datablit in Frameworks */ = {isa = PBXBuildFile; productRef = 00D45A7A2E51D3E5000E86A8 /* Datablit */; };
+		00D45A7E2E51FE71000E86A8 /* Datablit in Frameworks */ = {isa = PBXBuildFile; productRef = 00D45A7D2E51FE71000E86A8 /* Datablit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +30,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				00D45A782E51C853000E86A8 /* Datablit in Frameworks */,
+				00D45A7B2E51D3E5000E86A8 /* Datablit in Frameworks */,
+				00D45A7E2E51FE71000E86A8 /* Datablit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +75,8 @@
 			name = iOSExample;
 			packageProductDependencies = (
 				00D45A772E51C853000E86A8 /* Datablit */,
+				00D45A7A2E51D3E5000E86A8 /* Datablit */,
+				00D45A7D2E51FE71000E86A8 /* Datablit */,
 			);
 			productName = iOSExample;
 			productReference = 00D45A5F2E509D39000E86A8 /* iOSExample.app */;
@@ -101,7 +107,7 @@
 			mainGroup = 00D45A562E509D39000E86A8;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				00D45A762E51C852000E86A8 /* XCLocalSwiftPackageReference "../../../datablit-swift" */,
+				00D45A7C2E51FE71000E86A8 /* XCLocalSwiftPackageReference "../../../datablit-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 00D45A602E509D39000E86A8 /* Products */;
@@ -331,7 +337,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		00D45A762E51C852000E86A8 /* XCLocalSwiftPackageReference "../../../datablit-swift" */ = {
+		00D45A7C2E51FE71000E86A8 /* XCLocalSwiftPackageReference "../../../datablit-swift" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../../../datablit-swift";
 		};
@@ -339,6 +345,14 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		00D45A772E51C853000E86A8 /* Datablit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Datablit;
+		};
+		00D45A7A2E51D3E5000E86A8 /* Datablit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Datablit;
+		};
+		00D45A7D2E51FE71000E86A8 /* Datablit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Datablit;
 		};
