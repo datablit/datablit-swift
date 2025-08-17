@@ -20,7 +20,7 @@ Add the following dependency to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/datablit/datablit-swift.git", from: "1.0.0")
+    .package(url: "https://github.com/your-username/analytics-swift.git", from: "1.0.0")
 ]
 ```
 
@@ -44,7 +44,8 @@ Datablit.shared.initialize(
     endpoint: "https://event.datablit.com/v1/batch", // Optional, defaults to this URL
     flushAt: 20, // Optional, number of events to batch before sending
     flushInterval: 30.0, // Optional, seconds between automatic flushes
-    trackApplicationLifecycleEvents: true // Optional, track app lifecycle events
+    trackApplicationLifecycleEvents: true, // Optional, track app lifecycle events
+    enableDebugLogs: false // Optional, enable debug logging (defaults to false)
 )
 ```
 
@@ -132,7 +133,7 @@ The main class for interacting with the Datablit SDK.
 
 #### Methods
 
-##### `initialize(apiKey:apiBaseURL:endpoint:flushAt:flushInterval:trackApplicationLifecycleEvents:)`
+##### `initialize(apiKey:apiBaseURL:endpoint:flushAt:flushInterval:trackApplicationLifecycleEvents:enableDebugLogs:)`
 
 Initializes the SDK with the provided configuration.
 
@@ -143,6 +144,7 @@ Initializes the SDK with the provided configuration.
   - `flushAt` (Int, optional): Number of events to batch before sending (defaults to 20)
   - `flushInterval` (TimeInterval, optional): Seconds between automatic flushes (defaults to 30.0)
   - `trackApplicationLifecycleEvents` (Bool, optional): Whether to track app lifecycle events (defaults to false)
+  - `enableDebugLogs` (Bool, optional): Whether to enable debug logging (defaults to false)
 
 ##### `identify(userId:traits:)`
 
@@ -200,6 +202,7 @@ The library is organized into several focused modules:
 - **Batch Size**: 20 events
 - **Flush Interval**: 30 seconds
 - **Lifecycle Tracking**: Disabled by default
+- **Debug Logging**: Disabled by default
 
 ### Custom Configuration
 
@@ -212,8 +215,33 @@ Datablit.shared.initialize(
     endpoint: "https://your-custom-endpoint.com/v1/batch",
     flushAt: 50, // Larger batches
     flushInterval: 60.0, // Longer intervals
-    trackApplicationLifecycleEvents: true
+    trackApplicationLifecycleEvents: true,
+    enableDebugLogs: true // Enable debug logging for development
 )
+```
+
+## Debug Logging
+
+The SDK provides configurable debug logging to help with development and troubleshooting:
+
+- **Error Messages**: Critical errors (❌) are always logged regardless of the debug setting
+- **Debug Messages**: Informational messages (✅) are only logged when `enableDebugLogs` is `true`
+- **Status Codes**: HTTP response status codes are logged when debug logging is enabled
+- **Network Events**: Network request details are logged when debug logging is enabled
+
+### Example Debug Output
+
+When `enableDebugLogs: true` is set, you'll see output like:
+
+```
+✅ Status: 200
+```
+
+When errors occur, you'll always see:
+
+```
+❌ Flush failed: Network connection lost
+❌ Failed to encode encodable traits
 ```
 
 ## Error Handling

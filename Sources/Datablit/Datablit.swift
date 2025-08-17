@@ -15,6 +15,7 @@ public final class Datablit : @unchecked Sendable{
     private var anonymousId: String = UUID().uuidString
     private var userId: String?
     private var context: [String: AnyCodable] = [:]
+    private var enableDebugLogs: Bool = false
 
     private var queue: [Event] = []
     private var flushAt = 20
@@ -32,13 +33,15 @@ public final class Datablit : @unchecked Sendable{
         endpoint: String = "https://event.datablit.com/v1/batch",
         flushAt: Int = 20,
         flushInterval: TimeInterval = 30.0,
-        trackApplicationLifecycleEvents: Bool = false
+        trackApplicationLifecycleEvents: Bool = false,
+        enableDebugLogs: Bool = false
     ) {
         self.apiKey = apiKey
         self.apiBaseURL = apiBaseURL
         self.endpoint = endpoint
         self.flushAt = flushAt
         self.flushInterval = flushInterval
+        self.enableDebugLogs = enableDebugLogs
 
         self.anonymousId = loadOrGenerateAnonymousId()
         self.userId = UserDefaults.standard.string(forKey: "sdk_user_id")
@@ -49,6 +52,16 @@ public final class Datablit : @unchecked Sendable{
         }
 
         startFlushTimer()
+    }
+
+    private func debugLog(_ message: String) {
+        if enableDebugLogs {
+            print(message)
+        }
+    }
+    
+    private func errorLog(_ message: String) {
+        print(message)
     }
 
     public func identify(userId: String, traits: [String: Any] = [:]) {
@@ -67,7 +80,7 @@ public final class Datablit : @unchecked Sendable{
         guard let encoded = try? JSONEncoder().encode(traits),
               let json = try? JSONSerialization.jsonObject(with: encoded),
               let dict = json as? [String: Any] else {
-            print("❌ Failed to encode encodable traits")
+            errorLog("❌ Failed to encode encodable traits")
             return
         }
         identify(userId: userId, traits: dict)
@@ -87,7 +100,7 @@ public final class Datablit : @unchecked Sendable{
         guard let encoded = try? JSONEncoder().encode(properties),
               let json = try? JSONSerialization.jsonObject(with: encoded),
               let dict = json as? [String: Any] else {
-            print("❌ Failed to encode encodable properties")
+            errorLog("❌ Failed to encode encodable properties")
             return
         }
         track(eventName: eventName, properties: dict)
@@ -133,7 +146,7 @@ public final class Datablit : @unchecked Sendable{
 
             guard let url = URL(string: self.endpoint),
                   let data = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
-                print("❌ Invalid URL or payload")
+                self.errorLog("❌ Invalid URL or payload")
                 return
             }
 
@@ -145,7 +158,7 @@ public final class Datablit : @unchecked Sendable{
 
             URLSession.shared.dataTask(with: request) { data, response, error in
                 if let error = error {
-                    print("❌ Flush failed:", error.localizedDescription)
+                    self.errorLog("❌ Flush failed: \(error.localizedDescription)")
                     self.queueDispatch.async {
                         self.queue = batch + self.queue
                     }
@@ -153,7 +166,7 @@ public final class Datablit : @unchecked Sendable{
                 }
 
                 if let response = response as? HTTPURLResponse {
-                    print("✅ Status:", response.statusCode)
+                    self.debugLog("✅ Status: \(response.statusCode)")
                 }
             }.resume()
         }
@@ -218,8 +231,8 @@ public final class Datablit : @unchecked Sendable{
             ]),
             "userAgent": AnyCodable(userAgent),
             "library": AnyCodable([
-                "name": "analytics-swift",
-                "version": "1.7.3"
+                "name": "datablit-swift",
+                "version": "1.0.0"
             ]),
             "app": AnyCodable([
                 "version": appVersion,
@@ -236,7 +249,7 @@ public final class Datablit : @unchecked Sendable{
             "timezone": AnyCodable(TimeZone.current.identifier),
         ]
         #else
-        print("❌ setupContext(): UIKit not available. Skipping context population.")
+        errorLog("❌ setupContext(): UIKit not available. Skipping context population.")
         #endif
     }
     

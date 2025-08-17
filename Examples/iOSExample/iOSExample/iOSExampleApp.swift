@@ -18,7 +18,8 @@ struct iOSExampleApp: App {
             endpoint: "https://staging-event.datablit.com/v1/batch",
             flushAt: 1, // Smaller batch size for demo
             flushInterval: 30.0, // Faster flush for demo
-            trackApplicationLifecycleEvents: true
+            trackApplicationLifecycleEvents: true,
+            enableDebugLogs : true
         )
         
         // Identify a demo user
